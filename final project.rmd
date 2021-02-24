@@ -1,0 +1,117 @@
+---
+title: "PML Final Project"
+output:
+  word_document: default
+  html_document: default
+date: "2/15/2021"
+---
+## Overview
+#### One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, I use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbellhe detailed codes are showed as below. lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+#### The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. I use all other variables in the dataset to predict with. The project has been done in the following sections:
+##### 1. read packages and data 
+##### 2. pre-process data
+##### 3. use the four machine learning algorithms taughted in this course 
+##### 4. predict the test dataset by using the best machine learning algorithm 
+
+#### The result of this project shows that Random Forests is the best algorithm with an accuracy of almost 1 95%CI[0.9991,1]. 
+
+
+```{r setup, include=FALSE}
+rm(list=ls())
+graphics.off()
+```
+### Read packages and data
+```{r,warning=FALSE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+training_all<-read.csv("pml-training.csv")
+validation<-read.csv("pml-testing.csv")
+
+set.seed(2021)
+intest<-createDataPartition(y=training_all$classe,p=0.7,list=FALSE)
+training<-training_all[intest,]
+testing<-training[-intest,]
+
+```
+### Pre-pocess data
+#### 1. Imputate the missing data by using KnnImpute
+#### 2. Remove Near-Zero-Variance predictors
+#### 3. Standarize all predictors
+#### 4. Remove columns 1-6 for apparently non-related information
+
+```{r,warning=FALSE}
+library(RANN)
+noNA<-preProcess(training,method = "knnImpute")
+training_2<-predict(noNA,training)
+testing_2<-predict(noNA,testing)
+validation_2<-predict(noNA,validation)
+
+nzv<-nearZeroVar(training_2,saveMetrics = TRUE)
+training_3<-training_2[,!nzv$nzv]
+testing_3<-testing_2[,!nzv$nzv]
+validation_3<-validation_2[,!nzv$nzv]
+
+stad<-preProcess(training_3,method = c("center","scale"))
+training_4<-predict(stad,training_3)
+testing_4<-predict(stad,testing_3)
+validation_4<-predict(stad,validation_3)
+
+
+training_5<-training_4[,-c(1:6)]
+testing_5<-testing_4[,-c(1:6)]
+
+```
+
+### Use the several algorithems introdunced in this courses
+#### 1. Decision Tree
+```{r}
+
+modFit1<-rpart(classe~.,data=training_5,method="class")
+fancyRpartPlot(modFit1)
+pred1<-predict(modFit1,testing_5,type = "class")
+Acc_1<-confusionMatrix(pred1,testing_5$classe)
+Acc_1$overall[1]
+
+```
+#### 2. Use Random Forests
+
+```{r}
+#modFit2<-train(classe~.,data=training_5,method="rf",)
+library(randomForest)
+modFit2<-randomForest(classe~.,data=training_5)
+pred2<-predict(modFit2,testing_5,type="class")
+Acc_2<-confusionMatrix(pred2,testing_5$classe)
+Acc_2$overall[1]
+```
+
+#### 3. Use boosting
+```{r}
+modFit3<-train(classe~.,data=training_5,method="gbm")
+pred3<-predict(modFit3,testing_5)
+Acc_3<-confusionMatrix(pred3,testing_5$classe)
+Acc_3$overall[1]
+```
+
+#### 4. Use regularized regression
+
+```{r,warning=FALSE}
+
+modFit4<-train(classe~.,data=training_5,method="lda")
+pred4<-predict(modFit4,testing_5)
+Acc_4<-confusionMatrix(pred4,testing_5$classe)
+Acc_4$overall[1]
+```
+### Prediction quiz
+
+#### With comparison among the four algorithm, the Random Forests show the hightest accuracy. Therefore, I use the Random Forests to predict the test data 
+
+```{r}
+
+pred_testing<-predict(modFit2, validation_2)
+pred_testing
+```
+
+
